@@ -9,29 +9,29 @@
 import Foundation
 
 public class Broadcaster {
-    
-    fileprivate static var observersDic = [String: Any]()
-    
+
+    fileprivate static var observersDic = [String: WeakObjectSet<AnyObject>]()
+
     fileprivate static let notificationQueue = DispatchQueue(label: "com.swift.notification.center.dispatch.queue", attributes: .concurrent)
 
-    
+
     public static func register<T>(_ protocolType: T.Type, observer: T) {
         let key = "\(protocolType)"
         safeSet(key: key, object: observer as AnyObject)
     }
-    
+
     public static func unregister<T>(_ protocolType: T.Type, observer: T) {
         let key = "\(protocolType)"
         safeRemove(key: key, object: observer as AnyObject)
     }
-    
+
     public static func notify<T>(_ protocolType: T.Type, block: (T) -> Void ) {
-        
+
         let key = "\(protocolType)"
         guard let objectSet = safeGetObjectSet(key: key) else {
             return
         }
-        
+
         for observer in objectSet {
             if let observer = observer as? T {
                 block(observer)
@@ -41,10 +41,10 @@ public class Broadcaster {
 }
 
 private extension Broadcaster {
-    
+
     static func safeSet(key: String, object: AnyObject) {
         notificationQueue.async(flags: .barrier) {
-            if var set = observersDic[key] as? WeakObjectSet<AnyObject> {
+            if var set = observersDic[key] {
                 set.add(object)
                 observersDic[key] = set
             }else{
@@ -52,22 +52,22 @@ private extension Broadcaster {
             }
         }
     }
-    
+
     static func safeRemove(key: String, object: AnyObject) {
         notificationQueue.async(flags: .barrier) {
-            if var set = observersDic[key] as? WeakObjectSet<AnyObject> {
+            if var set = observersDic[key] {
                 set.remove(object)
                 observersDic[key] = set
             }
         }
     }
-    
+
     static func safeGetObjectSet(key: String) -> WeakObjectSet<AnyObject>? {
         var objectSet: WeakObjectSet<AnyObject>?
         notificationQueue.sync {
-            objectSet = observersDic[key] as? WeakObjectSet<AnyObject>
+            objectSet = observersDic[key]
         }
         return objectSet
     }
-    
+
 }
